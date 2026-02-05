@@ -1,6 +1,14 @@
 import collections
 import inspect
 
+try:
+    from collections.abc import Hashable
+
+    if not hasattr(collections, "Hashable"):
+        collections.Hashable = Hashable
+except Exception:
+    pass
+
 
 # See https://www.python-course.eu/python3_memoization.php
 class Memoize:

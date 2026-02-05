@@ -389,15 +389,13 @@ Default Counterfactual with Reinforcement Learning parameters.
 
     - ``'callbacks'`` : ``List[Callback]`` - list of callback functions applied at the end of each training step.
 
-    - ``'actor'`` : ``Optional[Union[tensorflow.keras.Model, torch.nn.Module]]`` - actor network.
+    - ``'actor'`` : ``Optional[torch.nn.Module]`` - actor network.
 
-    - ``'critic;`` : ``Optional[Union[tensorflow.keras.Model, torch.nn.Module]]`` - critic network.
+    - ``'critic'`` : ``Optional[torch.nn.Module]`` - critic network.
 
-    - ``'optimizer_actor'`` : ``Optional[Union[tensorflow.keras.optimizers.Optimizer, torch.optim.Optimizer]]`` - \
-    actor optimizer.
+    - ``'optimizer_actor'`` : ``Optional[torch.optim.Optimizer]`` - actor optimizer.
 
-    - ``'optimizer_critic'`` : ``Optional[Union[tensorflow.keras.optimizer.Optimizer, torch.optim.Optimizer]]`` - \
-    critic optimizer.
+    - ``'optimizer_critic'`` : ``Optional[torch.optim.Optimizer]`` - critic optimizer.
 
     - ``'lr_actor'`` : ``float`` - actor learning rate.
 

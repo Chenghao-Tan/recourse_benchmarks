@@ -50,7 +50,7 @@ class Dice(RecourseMethod):
     _DEFAULT_HYPERPARAMS = {"num": 1, "desired_class": 1, "posthoc_sparsity_param": 0.1}
 
     def __init__(self, mlmodel: MLModel, hyperparams: Optional[Dict] = None) -> None:
-        supported_backends = ["tensorflow", "pytorch"]
+        supported_backends = ["pytorch"]
         if mlmodel.backend not in supported_backends:
             raise ValueError(
                 f"{mlmodel.backend} is not in supported backends {supported_backends}"

@@ -3,15 +3,11 @@ from typing import List, Union
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import torch
 import torch.nn as nn
 
 from methods.autoencoder.save_load import get_home
 from tools.log import log
-
-tf.compat.v1.disable_eager_execution()
-
 
 class VariationalAutoencoder(nn.Module):
     def __init__(self, data_name: str, layers: List, mutable_mask):

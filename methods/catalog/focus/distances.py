@@ -1,4 +1,13 @@
-import tensorflow as tf
+import torch
+import torch.nn.functional as F
+
+
+def _ensure_tensor(x, like=None):
+    if torch.is_tensor(x):
+        return x
+    if like is not None:
+        return torch.tensor(x, device=like.device, dtype=like.dtype)
+    return torch.tensor(x, dtype=torch.float32)
 
 
 def distance_func(name, x1, x2, eps: float = 0.0):
@@ -11,33 +20,25 @@ def distance_func(name, x1, x2, eps: float = 0.0):
     if name == "cosine":
         ax = -1
         return cosine_dist(x1, x2, ax, eps)
+    raise ValueError(f"Unknown distance function: {name}")
 
 
 def l1_dist(x1, x2, ax: int, eps: float = 0.0):
-    # sum over |x| + eps, i.e. L1 norm
-    x = x1 - x2
-    return tf.reduce_sum(tf.abs(x), axis=ax) + eps
+    x1_t = _ensure_tensor(x1)
+    x2_t = _ensure_tensor(x2, like=x1_t)
+    return torch.sum(torch.abs(x1_t - x2_t), dim=ax) + eps
 
 
 def l2_dist(x1, x2, ax: int, eps: float = 0.0):
-    # sqrt((sum over x^2) + eps)), i.e. L2 norm
-    x = x1 - x2
-    return (tf.reduce_sum(x**2, axis=ax) + eps) ** 0.5
+    x1_t = _ensure_tensor(x1)
+    x2_t = _ensure_tensor(x2, like=x1_t)
+    return torch.sqrt(torch.sum((x1_t - x2_t) ** 2, dim=ax) + eps)
 
 
 def cosine_dist(x1, x2, ax: int, eps: float = 0.0):
-    # normalize by sqrt(max(sum(x**2), 1e-12))
-    normalize_x1 = tf.nn.l2_normalize(x1, dim=1)
-    normalize_x2 = tf.nn.l2_normalize(x2, dim=1)
-    dist = (
-        tf.losses.cosine_distance(
-            normalize_x1,
-            normalize_x2,
-            axis=ax,
-            reduction=tf.compat.v1.losses.Reduction.NONE,
-        )
-        + eps
-    )
-    dist = tf.squeeze(dist)
-    dist = tf.cast(dist, tf.float64)
-    return dist
+    x1_t = _ensure_tensor(x1)
+    x2_t = _ensure_tensor(x2, like=x1_t)
+    normalize_x1 = F.normalize(x1_t, p=2, dim=1)
+    normalize_x2 = F.normalize(x2_t, p=2, dim=1)
+    dist = 1.0 - torch.sum(normalize_x1 * normalize_x2, dim=ax)
+    return dist + eps

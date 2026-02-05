@@ -4,7 +4,6 @@ from typing import Any, List, Union
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import torch
 
 from data.catalog.online_catalog import DataCatalog
@@ -23,8 +22,8 @@ class ModelCatalog(MLModel):
         Correct dataset for ML model.
     model_type : {'mlp', 'linear', 'forest'}
         The model architecture. Multi-Layer Perceptron, Logistic Regression, and Random Forest respectively.
-    backend : {'tensorflow', 'pytorch', 'sklearn', 'xgboost'}
-        Specifies the used framework. Tensorflow and PyTorch only support 'ann' and 'linear'. Sklearn and Xgboost only support 'forest'.
+    backend : {'pytorch', 'sklearn', 'xgboost'}
+        Specifies the used framework. PyTorch only supports 'ann' and 'linear'. Sklearn and Xgboost only support 'forest'.
     cache : boolean, default: True
         If True, try to load from the local cache first, and save to the cache if a download is required.
     models_home : string, optional
@@ -62,7 +61,7 @@ class ModelCatalog(MLModel):
         """
         Constructor for pretrained ML models from the catalog.
 
-        Possible backends are currently "pytorch", "tensorflow" for "ann" and "linear" models.
+        Possible backends are currently "pytorch" for "ann" and "linear" models.
         Possible backends are currently "sklearn", "xgboost" for "forest" models.
 
         """
@@ -71,9 +70,9 @@ class ModelCatalog(MLModel):
         self._continuous = data.continuous
         self._categorical = data.categorical
 
-        if self.backend not in {"pytorch", "tensorflow", "sklearn", "xgboost"}:
+        if self.backend not in {"pytorch", "sklearn", "xgboost"}:
             raise ValueError(
-                'Backend not available, please choose between "pytorch", "tensorflow", "sklearn", or "xgboost".'
+                'Backend not available, please choose between "pytorch", "sklearn", or "xgboost".'
             )
         super().__init__(data)
 
@@ -151,7 +150,7 @@ class ModelCatalog(MLModel):
         """
         Describes the type of backend which is used for the ml model.
 
-        E.g., tensorflow, pytorch, sklearn, ...
+        E.g., pytorch, sklearn, xgboost, ...
 
         Returns
         -------
@@ -167,14 +166,14 @@ class ModelCatalog(MLModel):
 
         Returns
         -------
-        ml_model : tensorflow, pytorch, sklearn model type
+        ml_model : pytorch, sklearn, xgboost model type
             Loaded model
         """
         return self._model
 
     def predict(
-        self, x: Union[np.ndarray, pd.DataFrame, torch.Tensor, tf.Tensor]
-    ) -> Union[np.ndarray, pd.DataFrame, torch.Tensor, tf.Tensor]:
+        self, x: Union[np.ndarray, pd.DataFrame, torch.Tensor]
+    ) -> Union[np.ndarray, pd.DataFrame, torch.Tensor]:
         """
         One-dimensional prediction of ml model for an output interval of [0, 1]
 
@@ -182,12 +181,12 @@ class ModelCatalog(MLModel):
 
         Parameters
         ----------
-        x : np.Array, pd.DataFrame, or backend specific (tensorflow or pytorch tensor)
+        x : np.Array, pd.DataFrame, or backend specific (pytorch tensor)
             Tabular data of shape N x M (N number of instances, M number of features)
 
         Returns
         -------
-        output : np.ndarray, or backend specific (tensorflow or pytorch tensor)
+        output : np.ndarray, or backend specific (pytorch tensor)
             Ml model prediction for interval [0, 1] with shape N x 1
         """
 
@@ -198,21 +197,16 @@ class ModelCatalog(MLModel):
 
         if self._backend == "pytorch":
             return self.predict_proba(x)[:, 1].reshape((-1, 1))
-        elif self._backend == "tensorflow":
-            # keep output in shape N x 1
-            # order data (column-wise) before prediction
-            x = self.get_ordered_features(x)
-            return self._model.predict(x)[:, 1].reshape((-1, 1))
         elif self._backend == "sklearn" or self._backend == "xgboost":
             return self._model.predict(self.get_ordered_features(x))
         else:
             raise ValueError(
-                'Incorrect backend value. Please use only "pytorch" or "tensorflow".'
+                'Incorrect backend value. Please use only "pytorch", "sklearn", or "xgboost".'
             )
 
     def predict_proba(
-        self, x: Union[np.ndarray, pd.DataFrame, torch.Tensor, tf.Tensor]
-    ) -> Union[np.ndarray, pd.DataFrame, torch.Tensor, tf.Tensor]:
+        self, x: Union[np.ndarray, pd.DataFrame, torch.Tensor]
+    ) -> Union[np.ndarray, pd.DataFrame, torch.Tensor]:
         """
         Two-dimensional probability prediction of ml model
 
@@ -220,12 +214,12 @@ class ModelCatalog(MLModel):
 
         Parameters
         ----------
-        x : np.Array, pd.DataFrame, or backend specific (tensorflow or pytorch tensor)
+        x : np.Array, pd.DataFrame, or backend specific (pytorch tensor)
             Tabular data of shape N x M (N number of instances, M number of features)
 
         Returns
         -------
-        output : np.ndarray, or backend specific (tensorflow or pytorch tensor)
+        output : np.ndarray, or backend specific (pytorch tensor)
             Ml model prediction with shape N x 2
         """
 
@@ -264,13 +258,11 @@ class ModelCatalog(MLModel):
             else:
                 return output.detach().cpu().numpy()
 
-        elif self._backend == "tensorflow":
-            return self._model.predict(x)
         elif self._backend == "sklearn" or self._backend == "xgboost":
             return self._model.predict_proba(x)
         else:
             raise ValueError(
-                'Incorrect backend value. Please use only "pytorch" or "tensorflow".'
+                'Incorrect backend value. Please use only "pytorch", "sklearn", or "xgboost".'
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

@@ -7,11 +7,8 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import torch
 import yaml
-from tensorflow import Graph, Session
-from tensorflow.python.keras.backend import set_session
 
 import evaluation.catalog as evaluation_catalog
 from data.api import Data
@@ -27,11 +24,9 @@ from tools.log import log
 RANDOM_SEED = 54321
 
 np.random.seed(RANDOM_SEED)
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 seed(
     RANDOM_SEED
 )  # set the random seed so that the random permutations can be reproduced again
-tf.set_random_seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -67,11 +62,11 @@ def initialize_recourse_method(
     data_name: str,
     model_type: str,
     setup: Dict,
-    sess: Session = None,
+    sess=None,
 ) -> RecourseMethod:
     """
     Initializes and returns an instance of a recourse method based on the specified recourse method,
-    machine learning model, data, and an optional TensorFlow session.
+    machine learning model, data, and an optional session parameter.
 
     Parameters
     ----------
@@ -81,7 +76,7 @@ def initialize_recourse_method(
     data_name (str): The name of the dataset.
     model_type (str): The type of machine learning model.
     setup (Dict): The experimental setup containing hyperparameters for the recourse methods.
-    sess (Session, optional): Optional TensorFlow session. Defaults to None.
+    sess (optional): Optional session parameter. Defaults to None.
 
     Returns
     -------
@@ -101,13 +96,27 @@ def initialize_recourse_method(
     elif method == "ar":
         coeffs, intercepts = None, None
         if model_type == "linear":
-            # get weights and bias of linear layer for negative class 0
-            coeffs_neg = mlmodel.raw_model.layers[0].get_weights()[0][:, 0]
-            intercepts_neg = np.array(mlmodel.raw_model.layers[0].get_weights()[1][0])
+            if hasattr(mlmodel.raw_model, "layers"):
+                # Keras-style
+                coeffs_neg = mlmodel.raw_model.layers[0].get_weights()[0][:, 0]
+                intercepts_neg = np.array(
+                    mlmodel.raw_model.layers[0].get_weights()[1][0]
+                )
 
-            # get weights and bias of linear layer for positive class 1
-            coeffs_pos = mlmodel.raw_model.layers[0].get_weights()[0][:, 1]
-            intercepts_pos = np.array(mlmodel.raw_model.layers[0].get_weights()[1][1])
+                coeffs_pos = mlmodel.raw_model.layers[0].get_weights()[0][:, 1]
+                intercepts_pos = np.array(
+                    mlmodel.raw_model.layers[0].get_weights()[1][1]
+                )
+            elif hasattr(mlmodel.raw_model, "linear"):
+                # PyTorch-style
+                weights = mlmodel.raw_model.linear.weight.detach().cpu().numpy()
+                bias = mlmodel.raw_model.linear.bias.detach().cpu().numpy()
+                coeffs_neg = weights[0]
+                intercepts_neg = np.array(bias[0])
+                coeffs_pos = weights[1]
+                intercepts_pos = np.array(bias[1])
+            else:
+                raise ValueError("Unsupported linear model for AR coefficients.")
 
             coeffs = -(coeffs_neg - coeffs_pos)
             intercepts = -(intercepts_neg - intercepts_pos)
@@ -175,7 +184,7 @@ def initialize_recourse_method(
     elif method == "larr":
         return Larr(mlmodel, hyperparams)
     elif method == "rbr":
-        hyperparams["train_data"] = data.df_train.drop(columns=["y"], axis=1)
+        hyperparams["train_data"] = data.df_train.drop(columns=["y"])
         dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         hyperparams["device"] = dev
         return RBR(mlmodel, hyperparams)
@@ -412,8 +421,7 @@ if __name__ == "__main__":
             ]
         )
 
-    session_models = ["cem", "cem_vae", "greedy"]
-    torch_methods = [
+    pytorch_methods = [
         "cchvae",
         "claproar",
         "clue",
@@ -429,14 +437,27 @@ if __name__ == "__main__":
         "rbr",
     ]
     sklearn_methods = ["feature_tweak", "focus", "mace"]
+    common_methods = ["ar", "dice", "face", "face_knn", "face_epsilon", "gs"]
+    disabled_methods = {
+        "cem",  # tensorflow
+        "cem_vae",  # tensorflow
+        "greedy",  # tensorflow
+        "causal_recourse",  # causal
+    }
 
     for method_name in args.recourse_method:
-        if method_name in torch_methods:
+        if method_name in disabled_methods:
+            log.info("Skipping disabled recourse method: {}".format(method_name))
+            continue
+        if method_name in pytorch_methods:
             backend = "pytorch"
         elif method_name in sklearn_methods:
             backend = "sklearn"
+        elif method_name in common_methods:
+            backend = "pytorch"  # pytorch by default
         else:
-            backend = "tensorflow"
+            log.warning("Skipping unknown recourse method: {}".format(method_name))
+            continue
         log.info("Recourse method: {}".format(method_name))
         for data_name in args.dataset:
             for model_name in args.type:
@@ -459,91 +480,43 @@ if __name__ == "__main__":
                     and (data_name == "mortgage" or data_name == "twomoon")
                 ):
                     continue
+                # feature_tweak requires forest model
+                if method_name == "feature_tweak" and model_name != "forest":
+                    log.info(
+                        "Skipping feature_tweak for non-forest model: {}".format(
+                            model_name
+                        )
+                    )
+                    continue
 
                 dataset = DataCatalog(data_name, model_name, args.train_split)
 
-                if method_name in session_models:
-                    graph = Graph()
-                    ann_sess = Session()
-                    session_graph = tf.get_default_graph()
-                    init = tf.global_variables_initializer()
-                    ann_sess.run(init)
-                    with graph.as_default():
-                        with session_graph.as_default():
-                            set_session(ann_sess)
-                            mlmodel_sess = ModelCatalog(dataset, model_name, backend)
+                mlmodel = ModelCatalog(dataset, model_name, backend)
+                factuals = predict_negative_instances(mlmodel, dataset)
 
-                            factuals_sess = predict_negative_instances(
-                                mlmodel_sess, dataset
-                            )
-
-                            recourse_method_sess = initialize_recourse_method(
-                                method_name,
-                                mlmodel_sess,
-                                dataset,
-                                data_name,
-                                model_name,
-                                setup,
-                                sess=ann_sess,
-                            )
-                            factuals_len = len(factuals_sess)
-                            if factuals_len == 0:
-                                continue
-                            elif factuals_len > args.number_of_samples:
-                                factuals_sess = factuals_sess.sample(
-                                    n=args.number_of_samples, random_state=RANDOM_SEED
-                                )
-
-                            factuals_sess = factuals_sess.reset_index(drop=True)
-                            benchmark = Benchmark(
-                                mlmodel_sess, recourse_method_sess, factuals_sess
-                            )
-                            evaluation_measures = [
-                                evaluation_catalog.YNN(
-                                    benchmark.mlmodel, {"y": 5, "cf_label": 1}
-                                ),
-                                evaluation_catalog.Distance(benchmark.mlmodel),
-                                evaluation_catalog.SuccessRate(),
-                                evaluation_catalog.Redundancy(
-                                    benchmark.mlmodel, {"cf_label": 1}
-                                ),
-                                evaluation_catalog.ConstraintViolation(
-                                    benchmark.mlmodel
-                                ),
-                                evaluation_catalog.AvgTime({"time": benchmark.timer}),
-                            ]
-                            df_benchmark = benchmark.run_benchmark(evaluation_measures)
-                else:
-                    mlmodel = ModelCatalog(dataset, model_name, backend)
-                    factuals = predict_negative_instances(mlmodel, dataset)
-
-                    factuals_len = len(factuals)
-                    if factuals_len == 0:
-                        continue
-                    elif factuals_len > args.number_of_samples:
-                        factuals = factuals.sample(
-                            n=args.number_of_samples, random_state=RANDOM_SEED
-                        )
-
-                    factuals = factuals.reset_index(drop=True)
-                    recourse_method = initialize_recourse_method(
-                        method_name, mlmodel, dataset, data_name, model_name, setup
+                factuals_len = len(factuals)
+                if factuals_len == 0:
+                    continue
+                elif factuals_len > args.number_of_samples:
+                    factuals = factuals.sample(
+                        n=args.number_of_samples, random_state=RANDOM_SEED
                     )
 
-                    benchmark = Benchmark(mlmodel, recourse_method, factuals)
-                    evaluation_measures = [
-                        evaluation_catalog.YNN(
-                            benchmark.mlmodel, {"y": 5, "cf_label": 1}
-                        ),
-                        evaluation_catalog.Distance(benchmark.mlmodel),
-                        evaluation_catalog.SuccessRate(),
-                        evaluation_catalog.Redundancy(
-                            benchmark.mlmodel, {"cf_label": 1}
-                        ),
-                        evaluation_catalog.ConstraintViolation(benchmark.mlmodel),
-                        evaluation_catalog.AvgTime({"time": benchmark.timer}),
-                    ]
-                    df_benchmark = benchmark.run_benchmark(evaluation_measures)
+                factuals = factuals.reset_index(drop=True)
+                recourse_method = initialize_recourse_method(
+                    method_name, mlmodel, dataset, data_name, model_name, setup
+                )
+
+                benchmark = Benchmark(mlmodel, recourse_method, factuals)
+                evaluation_measures = [
+                    evaluation_catalog.YNN(benchmark.mlmodel, {"y": 5, "cf_label": 1}),
+                    evaluation_catalog.Distance(benchmark.mlmodel),
+                    evaluation_catalog.SuccessRate(),
+                    evaluation_catalog.Redundancy(benchmark.mlmodel, {"cf_label": 1}),
+                    evaluation_catalog.ConstraintViolation(benchmark.mlmodel),
+                    evaluation_catalog.AvgTime({"time": benchmark.timer}),
+                ]
+                df_benchmark = benchmark.run_benchmark(evaluation_measures)
 
                 df_benchmark["Recourse_Method"] = method_name
                 df_benchmark["Dataset"] = data_name

@@ -71,7 +71,7 @@ class MLModel(ABC):
         """
         Describes the type of backend which is used for the classifier.
 
-        E.g., tensorflow, pytorch, sklearn, xgboost
+        E.g., pytorch, sklearn, xgboost
 
         Returns
         -------

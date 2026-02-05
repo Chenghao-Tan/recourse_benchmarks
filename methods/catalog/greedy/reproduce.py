@@ -1,13 +1,15 @@
 import numpy as np
 import pandas as pd
 import pytest
-from tensorflow.keras.layers import Dense, Input
-from tensorflow.keras.models import Model
 
 from data.catalog import DataCatalog
 from methods import Greedy
 from models.catalog import ModelCatalog
 from models.negative_instances import predict_negative_instances
+
+pytest.skip(
+    "TensorFlow-based Greedy reproduction is disabled.", allow_module_level=True
+)
 
 """
 The tests focus on two key aspects:
@@ -26,16 +28,8 @@ Lisa Schut, Oscar Key, Rory McGrathz, Luca Costabelloz, Bogdan Sacaleanuz, Medb 
 """
 
 
-def build_autoencoder(input_dim):
-    input_layer = Input(shape=(input_dim,))
-    encoded = Dense(64, activation="relu")(input_layer)
-    encoded = Dense(32, activation="relu")(encoded)
-    decoded = Dense(64, activation="relu")(encoded)
-    decoded = Dense(input_dim, activation="sigmoid")(decoded)
-
-    autoencoder = Model(input_layer, decoded)
-    autoencoder.compile(optimizer="adam", loss="mse")
-    return autoencoder
+def build_autoencoder(_input_dim):
+    raise RuntimeError("TensorFlow-based autoencoder is disabled.")
 
 
 def calculate_standard_deviation(values):

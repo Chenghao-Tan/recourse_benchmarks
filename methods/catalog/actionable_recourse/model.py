@@ -11,6 +11,9 @@ from tools.log import log
 from ...api import RecourseMethod
 from ...processing.counterfactuals import merge_default_parameters
 
+if not hasattr(np, "float_"):
+    np.float_ = np.float64  # compatibility for NumPy 2.0 with recourse dependency
+
 
 class ActionableRecourse(RecourseMethod):
     """
@@ -72,7 +75,7 @@ class ActionableRecourse(RecourseMethod):
         coeffs: Optional[np.ndarray] = None,
         intercepts: Optional[np.ndarray] = None,
     ) -> None:
-        supported_backends = ["tensorflow", "pytorch"]
+        supported_backends = ["pytorch"]
         if mlmodel.backend not in supported_backends:
             raise ValueError(
                 f"{mlmodel.backend} is not in supported backends {supported_backends}"

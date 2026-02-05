@@ -75,7 +75,7 @@ class BaseNet(object):
         log.info("\nNet:")
 
     def get_nb_parameters(self):
-        return np.sum(p.numel() for p in self.model.parameters())
+        return sum(p.numel() for p in self.model.parameters())
 
     def set_mode_train(self, train=True):
         if train:
@@ -106,7 +106,10 @@ class BaseNet(object):
 
     def load(self, filename):
         log.info("Reading %s\n" % filename)
-        state_dict = torch.load(filename)  # added map_location
+        try:
+            state_dict = torch.load(filename, weights_only=False)
+        except TypeError:
+            state_dict = torch.load(filename)
         self.epoch = state_dict["epoch"]
         self.lr = state_dict["lr"]
         self.model = state_dict["model"]

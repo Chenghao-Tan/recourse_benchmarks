@@ -33,7 +33,7 @@ class GrowingSpheres(RecourseMethod):
     """
 
     def __init__(self, mlmodel: MLModel, hyperparams=None) -> None:
-        supported_backends = ["tensorflow", "pytorch"]
+        supported_backends = ["pytorch"]
         if mlmodel.backend not in supported_backends:
             raise ValueError(
                 f"{mlmodel.backend} is not in supported backends {supported_backends}"

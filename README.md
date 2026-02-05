@@ -144,7 +144,7 @@ data_name = "adult"
 dataset = DataCatalog(data_name, "mlp", 0.8)
 
 # load artificial neural network from catalog
-model = ModelCatalog(dataset, "mlp", "tensorflow")
+model = ModelCatalog(dataset, "mlp", "pytorch")
 
 # get factuals from the data to generate counterfactual examples
 factuals = (dataset._df_train).sample(n=10, random_state=RANDOM_SEED)

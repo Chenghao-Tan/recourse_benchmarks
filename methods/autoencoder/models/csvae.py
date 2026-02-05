@@ -4,7 +4,6 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import torch
 import torch.nn as nn
 from torch import optim
@@ -13,9 +12,6 @@ from tqdm import trange
 from methods.autoencoder.losses import csvae_loss
 from methods.autoencoder.save_load import get_home
 from tools.log import log
-
-tf.compat.v1.disable_eager_execution()
-
 
 class CSVAE(nn.Module):
     def __init__(self, data_name: str, layers: List[int], mutable_mask) -> None:

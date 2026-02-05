@@ -1,11 +1,5 @@
 import numpy as np
-import tensorflow as tf
 import torch
-from tensorflow import keras
-from tensorflow.keras.layers import Dense
-
-# Set TensorFlow logging level to ERROR
-tf.logging.set_verbosity(tf.logging.ERROR)
 
 
 # Custom Pytorch Module for Neural Networks
@@ -261,176 +255,16 @@ class PyTorchLogisticRegression(torch.nn.Module):
         return y_train_pred
 
 
-# Custom TensorFlow Module for Neural Networks
-class TensorflowNeuralNetwork(keras.Model):
-    """
-    Initializes a Tensor neural network model with specified number of inputs, outputs, and neurons.
-
-    Parameters
-    ----------
-    n_inputs (int): Number of input features.
-    n_outputs (int): Number of output classes.
-    n_neurons (int): Number of neurons in hidden layers.
-
-    Returns
-    -------
-    TensorflowNeuralNetwork.
-
-    Raises
-    -------
-    None.
-    """
-
-    def __init__(self, n_inputs, n_outputs, n_neurons):
-        super(TensorflowNeuralNetwork, self).__init__()
-        self.fc1 = Dense(n_neurons, activation="relu", input_dim=n_inputs)
-        self.fc2 = Dense(n_neurons, activation="relu", input_dim=n_neurons)
-        self.fc3 = Dense(n_outputs, activation="softmax", input_dim=n_neurons)
-
-    def call(self, inputs, training=False):
-        """
-        Performs the forward pass of the neural network.
-
-        Parameters
-        -------
-        inputs (tf.Tensor): Input tensor to the neural network.
-
-        Returns
-        -------
-        tf.Tensor: Predicted output tensor.
-
-        Raises
-        -------
-        None.
-        """
-        fc1_out = self.fc1(inputs)
-        fc2_out = self.fc2(fc1_out)
-        y_pred = self.fc3(fc2_out)
-        return y_pred
-
-    def fit(self, x_train, y_train):
-        """
-        Fits the neural network to the training data.
-
-        Parameters
-        ----------
-        x_train (array-like): Input training data.
-        y_train (array-like): Target training data.
-
-        Returns
-        -------
-        TensorflowNeuralNetwork: Trained neural network instance.
-
-        Raises
-        ------
-        None.
-        """
-        self.compile(optimizer="adam", loss="sparse_categorical_crossentropy")
-        super(TensorflowNeuralNetwork, self).fit(x_train, y_train)
-
-        return self
-
-    def predict(self, test):
-        """
-        Predicts using the trained neural network.
-
-        Parameters
-        -------
-        test (tf.Tensor): Input tensor for prediction.
-
-        Returns
-        -------
-        tf.Tensor: Predicted output tensor.
-
-        Raises
-        -------
-        None.
-        """
-        # Predict method
-        output = super(TensorflowNeuralNetwork, self).predict(test)
-        return output
+# TensorFlow-based models have been deprecated.
+class TensorflowNeuralNetwork:
+    def __init__(self, *args, **kwargs):
+        raise RuntimeError(
+            "TensorflowNeuralNetwork is disabled because TensorFlow support was removed."
+        )
 
 
-# Custom TensorFlow Module for Logistic Regression
-class TensorflowLogisticRegression(keras.Model):
-    """
-    Initializes a Tensorflow logistic regression linear model with specified number of inputs, outputs.
-
-    Parameters
-    ----------
-      n_inputs (int): Number of input features.
-      n_outputs (int): Number of output classes.
-
-    Returns
-    -------
-    TensorflowLogisticRegression.
-
-    Raises
-    -------
-    None.
-    """
-
-    def __init__(self, n_inputs, n_outputs):
-        super(TensorflowLogisticRegression, self).__init__()
-        self.linear = Dense(n_outputs, activation="softmax", input_dim=n_inputs)
-
-    def call(self, inputs, training=False):
-        """
-        Performs the forward pass of the logistic regression model.
-
-        Parameters
-        -------
-        inputs (tf.Tensor): Input tensor to the logistic regression model.
-
-        Returns
-        -------
-        tf.Tensor: Predicted output tensor.
-
-        Raises
-        -------
-        None.
-        """
-        y_pred = self.linear(inputs)
-        return y_pred
-
-    def fit(self, x_train, y_train):
-        """
-        Fits the logistic regression model to the training data.
-
-        Parameters
-        ----------
-        x_train (array-like): Input training data.
-        y_train (array-like): Target training data.
-
-        Returns
-        -------
-        TensorflowLogisticRegression: Trained logistic regression model instance.
-
-        Raises
-        ------
-        None.
-        """
-        self.compile(optimizer="adam", loss="sparse_categorical_crossentropy")
-        super(TensorflowLogisticRegression, self).fit(x_train, y_train)
-
-        return self
-
-    def predict(self, test):
-        """
-        Predicts using the trained logistic regression model.
-
-        Parameters
-        -------
-        test (tf.Tensor): Input tensor for prediction.
-
-        Returns
-        -------
-        tf.Tensor: Predicted output tensor.
-
-        Raises
-        -------
-        None.
-        """
-        # Predict method
-        output = super(TensorflowLogisticRegression, self).predict(test)
-        return output
+class TensorflowLogisticRegression:
+    def __init__(self, *args, **kwargs):
+        raise RuntimeError(
+            "TensorflowLogisticRegression is disabled because TensorFlow support was removed."
+        )
