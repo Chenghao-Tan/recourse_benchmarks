@@ -227,14 +227,7 @@ def create_parser():
         "--dataset",
         nargs="*",
         default=[
-            "adult",
-            "compass",
             "credit",
-            "german",
-            "mortgage",
-            "twomoon",
-            "breast_cancer",
-            "boston_housing",
         ],
         choices=[
             "adult",
@@ -285,6 +278,7 @@ def create_parser():
             "cfrl",
             "probe",
             "roar",
+            "larr",
             "rbr",
         ],
         choices=[
