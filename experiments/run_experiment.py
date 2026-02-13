@@ -207,7 +207,7 @@ def create_parser():
         Choices: ["mlp", "linear", "forest"].
     -r, --recourse_method: Specifies recourse methods for the experiment.
         Default: ["dice", "ar", "causal_recourse", "cchvae", "cem", "cem_vae", "claproar", "clue", "cruds", "face_knn", "face_epsilon", "feature_tweak",
-            "focus", "gravitational", "greedy", "gs", "mace", "revise", "wachter", "cfvae", "cfrl", "probe", "roar", "rbr"].
+            "focus", "gravitational", "greedy", "gs", "mace", "revise", "wachter", "cfvae", "cfrl", "probe", "roar", "rbr", "larr"].
         Choices: ["dice", "ar", "causal_recourse", "cchvae", "cem", "cem_vae", "claproar", "clue", "cruds", "face_knn", "face_epsilon", "feature_tweak",
             "focus", "gravitational", "greedy", "gs", "mace", "revise", "wachter", "cfvae", "cfrl", "probe", "roar", "rbr", "larr"].
     -n, --number_of_samples: Specifies the number of instances per dataset.
@@ -235,6 +235,7 @@ def create_parser():
             "twomoon",
             "breast_cancer",
             "boston_housing",
+            "uci_credit",
         ],
         choices=[
             "adult",
@@ -286,6 +287,7 @@ def create_parser():
             "probe",
             "roar",
             "rbr",
+            "larr",
         ],
         choices=[
             "dice",
@@ -311,8 +313,8 @@ def create_parser():
             "cfrl",
             "probe",
             "roar",
-            "larr",
             "rbr",
+            "larr",
         ],
         help="Recourse methods for experiment",
     )
