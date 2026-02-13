@@ -1,6 +1,16 @@
 from typing import List
 
+import collections
 import networkx as nx
+
+try:
+    from collections.abc import Iterable
+
+    if not hasattr(collections, "Iterable"):
+        collections.Iterable = Iterable
+except Exception:
+    pass
+
 from causalgraphicalmodels import CausalGraphicalModel, StructuralCausalModel
 
 from data.causal_model.synthethic_data import ScmDataset

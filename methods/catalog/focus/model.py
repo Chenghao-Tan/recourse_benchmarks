@@ -8,8 +8,7 @@ from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-import tensorflow.contrib.eager as tfe
+import torch
 from sklearn.tree import DecisionTreeClassifier
 
 from methods.api import RecourseMethod
@@ -38,33 +37,22 @@ def _filter_hinge_loss(n_class, mask_vector, features, sigma, temperature, model
     """
     n_input = features.shape[0]
 
-    # if mask_vector all 0, i.e. all labels flipped
     if not np.any(mask_vector):
-        return np.zeros((n_input, n_class))
-
-    # filters feature input based on the mask
-    filtered_input = tf.boolean_mask(features, mask_vector)
-
-    # if sigma or temperature are not scalars
-    if not isinstance(
-        sigma, (float, int)
-    ):  # type(sigma) != float or type(sigma) != int:
-        sigma = tf.boolean_mask(sigma, mask_vector)
-    if not isinstance(
-        temperature, (float, int)
-    ):  # type(temperature) != float or type(temperature) != int:
-        temperature = tf.boolean_mask(temperature, mask_vector)
-
-    # compute loss
-    filtered_loss = model_fn(filtered_input, sigma, temperature)
+        return torch.zeros((n_input, n_class), device=features.device, dtype=features.dtype)
 
     indices = np.where(mask_vector)[0]
-    zero_loss = np.zeros((n_input, n_class))
-    # add sparse updates to an existing tensor according to indices
-    hinge_loss = tf.tensor_scatter_nd_add(
-        tensor=zero_loss, indices=indices[:, None], updates=filtered_loss
-    )
-    return hinge_loss
+    filtered_input = features[indices]
+
+    if not isinstance(sigma, (float, int)):
+        sigma = sigma[indices]
+    if not isinstance(temperature, (float, int)):
+        temperature = temperature[indices]
+
+    filtered_loss = model_fn(filtered_input, sigma, temperature)
+
+    zero_loss = torch.zeros((n_input, n_class), device=features.device, dtype=features.dtype)
+    zero_loss[indices] = filtered_loss
+    return zero_loss
 
 
 class FOCUS(RecourseMethod):
@@ -133,15 +121,8 @@ class FOCUS(RecourseMethod):
             hyperparams, self._DEFAULT_HYPERPARAMS
         )
 
-        if checked_hyperparams["optimizer"] == "adam":
-            self.optimizer = tf.compat.v1.train.AdamOptimizer(
-                learning_rate=checked_hyperparams["lr"]
-            )
-        elif checked_hyperparams["optimizer"] == "gd":
-            self.optimizer = tf.train.GradientDescentOptimizer(
-                learning_rate=checked_hyperparams["lr"]
-            )
-
+        self.optimizer_name = checked_hyperparams["optimizer"]
+        self.lr = checked_hyperparams["lr"]
         self.n_class = checked_hyperparams["n_class"]
         self.n_iter = checked_hyperparams["n_iter"]
         self.sigma_val = checked_hyperparams["sigma"]
@@ -150,103 +131,104 @@ class FOCUS(RecourseMethod):
         self.distance_function = checked_hyperparams["distance_func"]
 
     def get_counterfactuals(self, factuals: pd.DataFrame) -> pd.DataFrame:
-        best_perturb = np.array([])
+        original_input = self.model.get_ordered_features(factuals)
+        original_input = original_input.to_numpy()
+        ground_truth = self.model.predict(original_input).reshape(-1)
 
-        def f(best_perturb):
-            # doesn't work with categorical features, so they aren't used
-            original_input = self.model.get_ordered_features(factuals)
-            original_input = original_input.to_numpy()
-            ground_truth = self.model.predict(original_input)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        perturbed = torch.tensor(
+            original_input, dtype=torch.float32, device=device, requires_grad=True
+        )
+        original_tensor = torch.tensor(
+            original_input, dtype=torch.float32, device=device
+        )
 
-            # these will be the perturbed features, i.e. counterfactuals
-            perturbed = tf.Variable(
-                initial_value=original_input, name="perturbed_features", trainable=True
+        if self.optimizer_name == "adam":
+            optimizer = torch.optim.Adam([perturbed], lr=self.lr)
+        elif self.optimizer_name == "gd":
+            optimizer = torch.optim.SGD([perturbed], lr=self.lr)
+        else:
+            raise ValueError("optimizer not supported")
+
+        if hasattr(self.model.raw_model, "classes_"):
+            class_names = list(self.model.raw_model.classes_)
+        else:
+            class_names = list(range(self.n_class))
+
+        class_index = np.zeros(len(original_input), dtype=np.int64)
+        for i, class_name in enumerate(class_names):
+            mask = np.equal(ground_truth, class_name)
+            class_index[mask] = i
+        class_index_t = torch.tensor(class_index, device=device, dtype=torch.long)
+
+        indicator = np.ones(len(factuals))
+        sigma = torch.full(
+            (len(factuals),), self.sigma_val, device=device, dtype=torch.float32
+        )
+        temperature = torch.full(
+            (len(factuals),), self.temp_val, device=device, dtype=torch.float32
+        )
+        distance_weight = torch.full(
+            (len(factuals),), self.distance_weight_val, device=device, dtype=torch.float32
+        )
+
+        best_distance = np.full(len(factuals), 1000.0)
+        best_perturb = np.zeros_like(original_input)
+
+        for _ in range(self.n_iter):
+            indicator_t = torch.tensor(
+                indicator, device=device, dtype=torch.float32
             )
-            to_optimize = [perturbed]
+            optimizer.zero_grad()
 
-            class_index = np.zeros(len(original_input), dtype=np.int64)
-            for i, class_name in enumerate(self.model.raw_model.classes_):
-                mask = np.equal(ground_truth, class_name)
-                class_index[mask] = i
-            class_index = tf.constant(class_index, dtype=tf.int64)
-            example_range = tf.constant(np.arange(len(original_input), dtype=np.int64))
-            example_class_index = tf.stack((example_range, class_index), axis=1)
+            p_model = _filter_hinge_loss(
+                self.n_class,
+                indicator,
+                perturbed,
+                sigma,
+                temperature,
+                self._prob_from_input,
+            )
+            approx_prob = p_model[torch.arange(len(factuals), device=device), class_index_t]
 
-            # booleans to indicate if label has flipped
-            indicator = np.ones(len(factuals))
+            eps = 1.0e-10
+            distance = distance_func(
+                self.distance_function, perturbed, original_tensor, eps
+            )
 
-            # hyperparameters
-            sigma = np.full(len(factuals), self.sigma_val)
-            temperature = np.full(len(factuals), self.temp_val)
-            distance_weight = np.full(len(factuals), self.distance_weight_val)
+            prediction_loss = indicator_t * approx_prob
+            distance_loss = distance_weight * distance
+            total_loss = torch.mean(prediction_loss + distance_loss)
 
-            best_distance = np.full(len(factuals), 1000.0)
-            best_perturb = np.zeros(perturbed.shape)
+            total_loss.backward()
+            optimizer.step()
 
-            for i in range(self.n_iter):
-                with tf.GradientTape(persistent=True) as t:
-                    p_model = _filter_hinge_loss(
-                        self.n_class,
-                        indicator,
-                        perturbed,
-                        sigma,
-                        temperature,
-                        self._prob_from_input,
-                    )
-                    approx_prob = tf.gather_nd(p_model, example_class_index)
+            with torch.no_grad():
+                perturbed.clamp_(0.0, 1.0)
 
-                    eps = 10.0**-10
-                    distance = distance_func(
-                        self.distance_function, perturbed, original_input, eps
-                    )
+            true_distance = (
+                distance_func(self.distance_function, perturbed, original_tensor, 0)
+                .detach()
+                .cpu()
+                .numpy()
+            )
+            current_predict = self.model.predict(
+                perturbed.detach().cpu().numpy()
+            ).reshape(-1)
+            indicator = np.equal(ground_truth, current_predict).astype(np.float64)
 
-                    # the losses
-                    prediction_loss = indicator * approx_prob
-                    distance_loss = distance_weight * distance
-                    total_loss = tf.reduce_mean(prediction_loss + distance_loss)
-                    # optimize the losses
-                    grad = t.gradient(total_loss, to_optimize)
-                    self.optimizer.apply_gradients(
-                        zip(grad, to_optimize),
-                        global_step=tf.compat.v1.train.get_or_create_global_step(),
-                    )
-                    # clip perturbed values between 0 and 1 (inclusive)
-                    tf.compat.v1.assign(
-                        perturbed, tf.math.minimum(1, tf.math.maximum(0, perturbed))
-                    )
+            mask_flipped = np.not_equal(ground_truth, current_predict)
+            mask_smaller_dist = np.less(true_distance, best_distance)
 
-                    true_distance = distance_func(
-                        self.distance_function, perturbed, original_input, 0
-                    ).numpy()
+            temp_dist = best_distance.copy()
+            temp_dist[mask_flipped] = true_distance[mask_flipped]
+            best_distance[mask_smaller_dist] = temp_dist[mask_smaller_dist]
 
-                    # get the class predictions for the perturbed features
-                    current_predict = self.model.predict(perturbed.numpy())
-                    indicator = np.equal(ground_truth, current_predict).astype(
-                        np.float64
-                    )
-
-                    # get best perturbation so far, did prediction flip
-                    mask_flipped = np.not_equal(ground_truth, current_predict)
-                    # is distance lower then previous best distance
-                    mask_smaller_dist = np.less(true_distance, best_distance)
-
-                    # update best distances
-                    temp_dist = best_distance.copy()
-                    temp_dist[mask_flipped] = true_distance[mask_flipped]
-                    best_distance[mask_smaller_dist] = temp_dist[mask_smaller_dist]
-
-                    # update best perturbations
-                    temp_perturb = best_perturb.copy()
-                    temp_perturb[mask_flipped] = perturbed[mask_flipped]
-                    best_perturb[mask_smaller_dist] = temp_perturb[mask_smaller_dist]
-
-            return best_perturb
-
-        # Little bit hacky, but needed as other tf code is graph based.
-        # Graph based tf and eager execution for tf don't work together nicely.
-        with tf.compat.v1.Session() as sess:
-            pf = tfe.py_func(f, [best_perturb], tf.float32)
-            best_perturb = sess.run(pf)
+            temp_perturb = best_perturb.copy()
+            temp_perturb[mask_flipped] = (
+                perturbed.detach().cpu().numpy()[mask_flipped]
+            )
+            best_perturb[mask_smaller_dist] = temp_perturb[mask_smaller_dist]
 
         df_cfs = pd.DataFrame(best_perturb, columns=self.model.data.continuous)
         df_cfs = check_counterfactuals(self._mlmodel, df_cfs, factuals.index)
@@ -263,7 +245,6 @@ class FOCUS(RecourseMethod):
                 sigma=sigma,
                 temperature=temperature,
             )
-        elif isinstance(self.model.raw_model, DecisionTreeClassifier):
-            return trees.get_prob_classification_tree(
-                self.model.raw_model, feat_columns, perturbed, sigma=sigma
-            )
+        return trees.get_prob_classification_tree(
+            self.model.raw_model, feat_columns, perturbed, sigma=sigma
+        )

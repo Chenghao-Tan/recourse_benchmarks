@@ -64,7 +64,7 @@ def roar_recourse(
     torch_model,
     x: np.ndarray,
     coeff: np.ndarray,
-    intercept: np.float,
+    intercept: float,
     cat_feature_indices: List[int],
     binary_cat_features: bool = True,
     feature_costs: Optional[List[float]] = None,
@@ -89,7 +89,7 @@ def roar_recourse(
         Factual to explain.
     coeff: np.ndarray
         Coefficient for factual x.
-    intercept: np.float
+    intercept: float
         Intercept for factual x.
     cat_feature_indices: list
         List of positions of categorical features in x.

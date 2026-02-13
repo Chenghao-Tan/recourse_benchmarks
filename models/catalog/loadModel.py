@@ -17,8 +17,6 @@ import models.catalog.utils as utils
 from models.catalog.modelConversion import (
     PyTorchLogisticRegression,
     PyTorchNeuralNetwork,
-    TensorflowLogisticRegression,
-    TensorflowNeuralNetwork,
 )
 
 
@@ -143,7 +141,6 @@ def loadModelForDataset(
             epochs=epochs,
             learning_rate=learning_rate,
         ),
-        "tensorflow": TensorflowLogisticRegression(X_train.shape[1], 2),
     }
 
     neuralNetworksMap = {
@@ -156,7 +153,6 @@ def loadModelForDataset(
             epochs=epochs,
             learning_rate=learning_rate,
         ),
-        "tensorflow": TensorflowNeuralNetwork(X_train.shape[1], 2, 10),
     }
 
     forestMap = {

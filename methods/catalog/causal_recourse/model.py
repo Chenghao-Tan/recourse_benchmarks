@@ -91,7 +91,7 @@ class CausalRecourse(RecourseMethod):
     }
 
     def __init__(self, mlmodel: ModelCatalog, hyperparams: Dict):
-        supported_backends = ["tensorflow", "pytorch"]
+        supported_backends = ["pytorch"]
         if mlmodel.backend not in supported_backends:
             raise ValueError(
                 f"{mlmodel.backend} is not in supported backends {supported_backends}"
@@ -143,7 +143,7 @@ class CausalRecourse(RecourseMethod):
         min_values, max_values = self._get_range_values()
         mean_values = self._get_mean_values()
 
-        min_cost = np.infty
+        min_cost = np.inf
         min_action_set = {}
         if self._optimization_approach == "brute_force":
             valid_action_sets = get_discretized_action_sets(

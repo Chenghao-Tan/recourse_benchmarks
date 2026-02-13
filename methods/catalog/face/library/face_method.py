@@ -29,7 +29,7 @@ def graph_search(
     :param n_neighbors: int > 0; number of neighbors when constructing knn graph
     :param step: float > 0; step_size for growing spheres
     :param mode: str; either 'knn' or 'epsilon'
-    :param model: classification model (either tf keras, pytorch or sklearn)
+    :param model: classification model (either pytorch or sklearn)
     :param p_norm: float=>1; denotes the norm (classical: 1 or 2)
     :param frac: float 0 < number =< 1; fraction of data for which we compute the graph; if frac = 1, and data set large, then compute long
     :param keys_immutable: list; list of input names that may not be searched over
@@ -42,10 +42,24 @@ def graph_search(
     # ADD CONSTRAINTS by immutable inputs into adjacency matrix
     # if element in adjacency matrix 0, then it cannot be reached
     # this ensures that paths only take same sex / same race / ... etc. routes
-    for i in range(len(keys_immutable)):
-        immutable_constraint_matrix1, immutable_constraint_matrix2 = build_constraints(
-            data, i, keys_immutable
+    if len(keys_immutable) == 0:
+        immutable_constraint_matrix1 = np.ones(
+            (data.values.shape[0], data.values.shape[0])
         )
+        immutable_constraint_matrix2 = np.ones_like(immutable_constraint_matrix1)
+    else:
+        immutable_constraint_matrix1 = np.ones(
+            (data.values.shape[0], data.values.shape[0])
+        )
+        immutable_constraint_matrix2 = np.ones_like(immutable_constraint_matrix1)
+        for i in range(len(keys_immutable)):
+            tmp1, tmp2 = build_constraints(data, i, keys_immutable)
+            immutable_constraint_matrix1 = np.multiply(
+                immutable_constraint_matrix1, tmp1
+            )
+            immutable_constraint_matrix2 = np.multiply(
+                immutable_constraint_matrix2, tmp2
+            )
 
     # POSITIVE PREDICTIONS
     y_predicted = model.predict_proba(data.values)
@@ -128,7 +142,7 @@ def choose_random_subset(data, frac, index):
     -------
     pd.DataFrame
     """
-    number_samples = np.int(np.rint(frac * data.values.shape[0]))
+    number_samples = int(np.rint(frac * data.values.shape[0]))
     list_to_choose = (
         np.arange(0, index).tolist()
         + np.arange(index + 1, data.values.shape[0]).tolist()
@@ -278,10 +292,8 @@ def build_graph(
     else:
         graph = radius_neighbors_graph(data.values, radius=n, n_jobs=-1)
     adjacency_matrix = graph.toarray()
-    adjacency_matrix = np.multiply(
-        adjacency_matrix,
-        immutable_constraint_matrix1,
-        immutable_constraint_matrix2,
-    )  # element wise multiplication
+    adjacency_matrix = (
+        adjacency_matrix * immutable_constraint_matrix1 * immutable_constraint_matrix2
+    )
     graph = csr_matrix(adjacency_matrix)
     return graph

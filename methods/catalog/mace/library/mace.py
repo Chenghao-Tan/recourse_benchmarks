@@ -711,10 +711,10 @@ def findClosestCounterfactualSample(
     counterfactuals.append(
         {
             "counterfactual_sample": {},
-            "counterfactual_distance": np.infty,
+            "counterfactual_distance": np.inf,
             "interventional_sample": {},
-            "interventional_distance": np.infty,
-            "time": np.infty,
+            "interventional_distance": np.inf,
+            "time": np.inf,
             "norm_type": norm_type,
         }
     )

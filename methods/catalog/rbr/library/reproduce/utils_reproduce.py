@@ -10,7 +10,6 @@ from typing import Any, List, Union
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -392,7 +391,7 @@ class ModelCatalogWrapper(MLModel):
         """
         Constructor for pretrained ML models from the catalog.
 
-        Possible backends are currently "pytorch", "tensorflow" for "ann" and "linear" models.
+        Possible backends are currently "pytorch" for "ann" and "linear" models.
         Possible backends are currently "sklearn", "xgboost" for "forest" models.
 
         """
@@ -477,7 +476,7 @@ class ModelCatalogWrapper(MLModel):
         """
         Describes the type of backend which is used for the ml model.
 
-        E.g., tensorflow, pytorch, sklearn, ...
+        E.g., pytorch, sklearn, xgboost, ...
 
         Returns
         -------
@@ -493,14 +492,14 @@ class ModelCatalogWrapper(MLModel):
 
         Returns
         -------
-        ml_model : tensorflow, pytorch, sklearn model type
+        ml_model : pytorch, sklearn, xgboost model type
             Loaded model
         """
         return self._model
 
     def predict(
-        self, x: Union[np.ndarray, pd.DataFrame, torch.Tensor, tf.Tensor]
-    ) -> Union[np.ndarray, pd.DataFrame, torch.Tensor, tf.Tensor]:
+        self, x: Union[np.ndarray, pd.DataFrame, torch.Tensor]
+    ) -> Union[np.ndarray, pd.DataFrame, torch.Tensor]:
         """
         One-dimensional prediction of ml model for an output interval of [0, 1]
 
@@ -508,12 +507,12 @@ class ModelCatalogWrapper(MLModel):
 
         Parameters
         ----------
-        x : np.Array, pd.DataFrame, or backend specific (tensorflow or pytorch tensor)
+        x : np.Array, pd.DataFrame, or backend specific (pytorch tensor)
             Tabular data of shape N x M (N number of instances, M number of features)
 
         Returns
         -------
-        output : np.ndarray, or backend specific (tensorflow or pytorch tensor)
+        output : np.ndarray, or backend specific (pytorch tensor)
             Ml model prediction for interval [0, 1] with shape N x 1
         """
 
@@ -524,21 +523,16 @@ class ModelCatalogWrapper(MLModel):
 
         if self._backend == "pytorch":
             return self.predict_proba(x)[:, 1].reshape((-1, 1))
-        elif self._backend == "tensorflow":
-            # keep output in shape N x 1
-            # order data (column-wise) before prediction
-            x = self.get_ordered_features(x)
-            return self._model.predict(x)[:, 1].reshape((-1, 1))
         elif self._backend == "sklearn" or self._backend == "xgboost":
             return self._model.predict(self.get_ordered_features(x))
         else:
             raise ValueError(
-                'Incorrect backend value. Please use only "pytorch" or "tensorflow".'
+                'Incorrect backend value. Please use only "pytorch", "sklearn", or "xgboost".'
             )
 
     def predict_proba(
-        self, x: Union[np.ndarray, pd.DataFrame, torch.Tensor, tf.Tensor]
-    ) -> Union[np.ndarray, pd.DataFrame, torch.Tensor, tf.Tensor]:
+        self, x: Union[np.ndarray, pd.DataFrame, torch.Tensor]
+    ) -> Union[np.ndarray, pd.DataFrame, torch.Tensor]:
         """
         Two-dimensional probability prediction of ml model
 
@@ -546,12 +540,12 @@ class ModelCatalogWrapper(MLModel):
 
         Parameters
         ----------
-        x : np.Array, pd.DataFrame, or backend specific (tensorflow or pytorch tensor)
+        x : np.Array, pd.DataFrame, or backend specific (pytorch tensor)
             Tabular data of shape N x M (N number of instances, M number of features)
 
         Returns
         -------
-        output : np.ndarray, or backend specific (tensorflow or pytorch tensor)
+        output : np.ndarray, or backend specific (pytorch tensor)
             Ml model prediction with shape N x 2
         """
 
@@ -590,11 +584,9 @@ class ModelCatalogWrapper(MLModel):
             else:
                 return output.detach().cpu().numpy()
 
-        elif self._backend == "tensorflow":
-            return self._model.predict(x)
         elif self._backend == "sklearn" or self._backend == "xgboost":
             return self._model.predict_proba(x)
         else:
             raise ValueError(
-                'Incorrect backend value. Please use only "pytorch" or "tensorflow".'
+                'Incorrect backend value. Please use only "pytorch", "sklearn", or "xgboost".'
             )

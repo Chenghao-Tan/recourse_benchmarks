@@ -12,7 +12,7 @@ from models.negative_instances import predict_negative_instances
 def make_benchmark(data_name="adult", model_name="mlp"):
     # get data and mlmodel
     data = DataCatalog(data_name, model_name, 0.8)
-    model = ModelCatalog(data, model_name, backend="tensorflow")
+    model = ModelCatalog(data, model_name, backend="pytorch")
 
     # get factuals
     factuals = predict_negative_instances(model, data)

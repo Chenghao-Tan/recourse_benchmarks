@@ -15,7 +15,6 @@ from typing import Dict, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import torch
 import yaml
 
@@ -27,14 +26,11 @@ from models.catalog import ModelCatalog
 from models.negative_instances import predict_negative_instances
 from tools.log import log
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 RANDOM_SEED = 54321
 NUMBER_OF_SAMPLES = 20
-BACKEND = (
-    "tensorflow"  # TO-DO: Replace with backend type of the implemented recourse method
-)
+BACKEND = "pytorch"  # TO-DO: Replace with backend type of the implemented recourse method
 DATA_NAME = "adult"
 METHOD_NAME = "dice"  # TO-DO: Replace with implemented recourse method
 MODEL_NAME = "linear"
@@ -42,7 +38,6 @@ TRAIN_SPLIT = 0.7
 
 seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
-tf.set_random_seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
 

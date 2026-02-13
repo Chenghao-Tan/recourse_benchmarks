@@ -89,6 +89,6 @@ def parse_booster(booster: xgboost.core.Booster):
     children_right = np.array(children_right)
     thresholds = np.array(thresholds)
     features = np.array(features)
-    scores = np.array(scores, dtype=np.float)
+    scores = np.array(scores, dtype=np.float64)
 
     return children_left, children_right, thresholds, features, scores
