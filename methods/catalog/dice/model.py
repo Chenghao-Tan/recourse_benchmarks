@@ -1,6 +1,7 @@
 from typing import Dict, Optional
 
 import dice_ml
+import numpy as np
 import pandas as pd
 
 from methods.processing import check_counterfactuals
@@ -97,7 +98,17 @@ class Dice(RecourseMethod):
         )
 
         list_cfs = dice_exp.cf_examples_list
-        df_cfs = pd.concat([cf.final_cfs_df for cf in list_cfs], ignore_index=True)
+        cf_frames = []
+        for cf in list_cfs:
+            cf_df = cf.final_cfs_df
+            if cf_df is None or cf_df.empty:
+                cf_df = pd.DataFrame(
+                    np.nan,
+                    index=range(self._num),
+                    columns=self._mlmodel.feature_input_order,
+                )
+            cf_frames.append(cf_df)
+        df_cfs = pd.concat(cf_frames, ignore_index=True)
         df_cfs = check_counterfactuals(self._mlmodel, df_cfs, factuals.index)
         df_cfs = self._mlmodel.get_ordered_features(df_cfs)
         return df_cfs
