@@ -1,6 +1,6 @@
+import collections
 from typing import List
 
-import collections
 import networkx as nx
 
 try:

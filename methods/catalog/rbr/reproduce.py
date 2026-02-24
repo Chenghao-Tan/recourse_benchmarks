@@ -317,7 +317,7 @@ def test_rbr(dataset_name, model_type, backend):
             f"Instance {idx}: L1 cost = {result.l1_cost}, Current Validity = {result.cur_valid}, Future Validity = {result.fut_valid}, Feasible = {result.feasible}"
         )
     print(
-        f"Average: L1 cost = {running_cost/n}, Current Validity = {running_current_val/n}, Future Validity = {running_future_val/n}"
+        f"Average: L1 cost = {running_cost / n}, Current Validity = {running_current_val / n}, Future Validity = {running_future_val / n}"
     )
 
     assert running_current_val / n >= 0.9

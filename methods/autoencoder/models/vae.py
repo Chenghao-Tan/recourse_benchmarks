@@ -9,6 +9,7 @@ import torch.nn as nn
 from methods.autoencoder.save_load import get_home
 from tools.log import log
 
+
 class VariationalAutoencoder(nn.Module):
     def __init__(self, data_name: str, layers: List, mutable_mask):
         """

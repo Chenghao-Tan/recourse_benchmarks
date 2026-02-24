@@ -144,7 +144,7 @@ class ClaPROAR(RecourseMethod):
             optimizer_cf.step()
 
             if torch.norm(x_prime.grad) < self.tol:
-                print(f"Converged at iteration {i+1}")
+                print(f"Converged at iteration {i + 1}")
                 break
 
         cfs = x_prime.detach()

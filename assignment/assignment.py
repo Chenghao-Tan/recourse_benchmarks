@@ -30,7 +30,9 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 RANDOM_SEED = 54321
 NUMBER_OF_SAMPLES = 20
-BACKEND = "pytorch"  # TO-DO: Replace with backend type of the implemented recourse method
+BACKEND = (
+    "pytorch"  # TO-DO: Replace with backend type of the implemented recourse method
+)
 DATA_NAME = "adult"
 METHOD_NAME = "dice"  # TO-DO: Replace with implemented recourse method
 MODEL_NAME = "linear"

@@ -13,4 +13,3 @@ class Greedy(RecourseMethod):
 
     def __init__(self, mlmodel: MLModel = None, hyperparams: Optional[Dict] = None):
         raise RuntimeError("Greedy is disabled because TensorFlow support was removed.")
-

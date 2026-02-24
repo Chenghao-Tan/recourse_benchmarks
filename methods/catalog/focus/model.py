@@ -38,7 +38,9 @@ def _filter_hinge_loss(n_class, mask_vector, features, sigma, temperature, model
     n_input = features.shape[0]
 
     if not np.any(mask_vector):
-        return torch.zeros((n_input, n_class), device=features.device, dtype=features.dtype)
+        return torch.zeros(
+            (n_input, n_class), device=features.device, dtype=features.dtype
+        )
 
     indices = np.where(mask_vector)[0]
     filtered_input = features[indices]
@@ -50,7 +52,9 @@ def _filter_hinge_loss(n_class, mask_vector, features, sigma, temperature, model
 
     filtered_loss = model_fn(filtered_input, sigma, temperature)
 
-    zero_loss = torch.zeros((n_input, n_class), device=features.device, dtype=features.dtype)
+    zero_loss = torch.zeros(
+        (n_input, n_class), device=features.device, dtype=features.dtype
+    )
     zero_loss[indices] = filtered_loss
     return zero_loss
 
@@ -169,16 +173,17 @@ class FOCUS(RecourseMethod):
             (len(factuals),), self.temp_val, device=device, dtype=torch.float32
         )
         distance_weight = torch.full(
-            (len(factuals),), self.distance_weight_val, device=device, dtype=torch.float32
+            (len(factuals),),
+            self.distance_weight_val,
+            device=device,
+            dtype=torch.float32,
         )
 
         best_distance = np.full(len(factuals), 1000.0)
         best_perturb = np.zeros_like(original_input)
 
         for _ in range(self.n_iter):
-            indicator_t = torch.tensor(
-                indicator, device=device, dtype=torch.float32
-            )
+            indicator_t = torch.tensor(indicator, device=device, dtype=torch.float32)
             optimizer.zero_grad()
 
             p_model = _filter_hinge_loss(
@@ -189,7 +194,9 @@ class FOCUS(RecourseMethod):
                 temperature,
                 self._prob_from_input,
             )
-            approx_prob = p_model[torch.arange(len(factuals), device=device), class_index_t]
+            approx_prob = p_model[
+                torch.arange(len(factuals), device=device), class_index_t
+            ]
 
             eps = 1.0e-10
             distance = distance_func(
@@ -225,9 +232,7 @@ class FOCUS(RecourseMethod):
             best_distance[mask_smaller_dist] = temp_dist[mask_smaller_dist]
 
             temp_perturb = best_perturb.copy()
-            temp_perturb[mask_flipped] = (
-                perturbed.detach().cpu().numpy()[mask_flipped]
-            )
+            temp_perturb[mask_flipped] = perturbed.detach().cpu().numpy()[mask_flipped]
             best_perturb[mask_smaller_dist] = temp_perturb[mask_smaller_dist]
 
         df_cfs = pd.DataFrame(best_perturb, columns=self.model.data.continuous)

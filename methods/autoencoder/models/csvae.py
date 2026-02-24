@@ -13,6 +13,7 @@ from methods.autoencoder.losses import csvae_loss
 from methods.autoencoder.save_load import get_home
 from tools.log import log
 
+
 class CSVAE(nn.Module):
     def __init__(self, data_name: str, layers: List[int], mutable_mask) -> None:
         super(CSVAE, self).__init__()

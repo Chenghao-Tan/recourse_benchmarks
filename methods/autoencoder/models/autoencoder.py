@@ -16,4 +16,3 @@ class Autoencoder:
         raise RuntimeError(
             "Autoencoder is disabled because TensorFlow/Keras support was removed."
         )
-
